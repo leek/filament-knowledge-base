@@ -29,6 +29,11 @@ class FlatfileDocumentation extends Model implements Documentable
         return App::getLocale();
     }
 
+    public function getFallbackLocale(): string
+    {
+        return App::getFallbackLocale();
+    }
+
     public function getRows()
     {
         $path = base_path(
@@ -36,6 +41,14 @@ class FlatfileDocumentation extends Model implements Documentable
                 ->append('/')
                 ->append($this->getLocale())
         );
+
+        if (! File::exists($path)) {
+            $path = base_path(
+                str(config('filament-knowledge-base.docs-path'))
+                    ->append('/')
+                    ->append($this->getFallbackLocale())
+            );
+        }
 
         return collect(File::allFiles($path))
             ->map(function (\SplFileInfo $file) use ($path) {
@@ -45,8 +58,7 @@ class FlatfileDocumentation extends Model implements Documentable
                     ->afterLast($path)
                     ->beforeLast($file->getExtension())
                     ->replace(DIRECTORY_SEPARATOR, '.')
-                    ->trim('.')
-                ;
+                    ->trim('.');
 
                 $parts = $id->explode('.', 3);
                 $group = data_get($data, 'front-matter.group');
@@ -190,11 +202,11 @@ class FlatfileDocumentation extends Model implements Documentable
         ])
             ->when(
                 $group = $this->getGroup(),
-                fn (Collection $collection) => $collection->put($this->getGroupUrl() . '#', $group)
+                fn(Collection $collection) => $collection->put($this->getGroupUrl() . '#', $group)
             )
             ->when(
                 $parent = $this->getParent(),
-                fn (Collection $collection) => $collection->put(
+                fn(Collection $collection) => $collection->put(
                     KnowledgeBase::documentable($this->getParentId())->getUrl(),
                     $parent,
                 )
@@ -209,8 +221,7 @@ class FlatfileDocumentation extends Model implements Documentable
         $group = collect(KnowledgeBase::panel()->getNavigation())
             ->first(function ($item) {
                 return $item instanceof NavigationGroup && $item->getLabel() === $this->getGroup();
-            })
-        ;
+            });
 
         if ($group) {
             return Arr::first($group->getItems())->getUrl();
